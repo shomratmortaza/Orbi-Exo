@@ -38,9 +38,10 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 .pw{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--d) cubic-bezier(.2,.9,.3,1.1)}
 .open .pw{grid-template-rows:1fr}
 .pi{min-height:0;overflow:hidden}
-.pin{height:min(60vh,400px);display:flex;flex-direction:column;padding:0 14px 14px;position:relative}
-nav{display:flex;gap:4px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
-nav button{border:0;background:none;color:var(--m);white-space:nowrap}
+.pi>.pin{height:min(70vh,420px);display:flex;flex-direction:row;gap:12px;padding:0 14px 14px;position:relative}
+nav{display:flex;flex-direction:column;gap:2px;overflow-y:auto;overflow-x:hidden;width:120px;flex:none;padding:4px 0 0;scrollbar-width:thin}
+nav button{border:0;background:none;color:var(--m);white-space:nowrap;text-align:left}
+@media (max-width:520px){.pi>.pin{flex-direction:column;gap:0;height:min(75vh,460px)}nav{flex-direction:row;flex-wrap:wrap;width:auto;overflow:visible;padding:4px 0 8px}nav button{padding:5px 9px}}
 nav button[aria-selected=true]{background:rgba(128,128,140,.25);color:var(--t)}
 #view{flex:1;overflow:auto;min-height:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
