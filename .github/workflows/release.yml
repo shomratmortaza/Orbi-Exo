@@ -36,6 +36,18 @@ jobs:
         with: {distribution: temurin, java-version: 17}
       - run: npm install
       - run: npx cap add android
+      - name: Android permissions for alarms
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          python3 - "$M" <<'PY'
+          import sys
+          p=sys.argv[1];s=open(p).read()
+          perms=['POST_NOTIFICATIONS','SCHEDULE_EXACT_ALARM','USE_EXACT_ALARM','RECEIVE_BOOT_COMPLETED','VIBRATE','WAKE_LOCK']
+          add=''.join('    <uses-permission android:name="android.permission.%s"/>\n'%x for x in perms if x not in s)
+          s=s.replace('<application',add+'    <application',1)
+          open(p,'w').write(s)
+          PY
+          grep uses-permission $M
       - name: App icon
         run: |
           for d in android/app/src/main/res/mipmap-*; do

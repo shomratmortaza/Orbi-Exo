@@ -283,6 +283,18 @@ alon(v,b){const a=alarms.find(a=>a.id==v);if(a){a.on=b.checked;LS.s('alarms',ala
 caldate(v){window.calSel=v;show('cal')},calprev(){calM=new Date(calM.getFullYear(),calM.getMonth()-1,1);show('cal')},calnext(){calM=new Date(calM.getFullYear(),calM.getMonth()+1,1);show('cal')},
 evadd(){const l=$('#ev-l').value.trim();if(!l)return;events.push({id:Date.now(),d:window.calSel||(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')})(),t:$('#ev-t').value,l,f:0});LS.s('events',events);show('cal')},
 evdel(v){events=events.filter(e=>e.id!=v);LS.s('events',events);show('cal')}});
+
+/* ---------- Native Android scheduling (rings even when the app is closed) ---------- */
+const LN=()=>window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.LocalNotifications;
+async function syncNative(){const ln=LN();if(!ln)return;try{
+ const pr=await ln.requestPermissions();if(pr.display!=='granted'){notify('Notifications blocked','Allow notifications for ORBI in Android settings so alarms can ring.');return}
+ const pend=await ln.getPending();if(pend.notifications.length)await ln.cancel({notifications:pend.notifications});
+ const list=[],now=Date.now();
+ alarms.filter(a=>a.on).forEach((a,i)=>{const[h,m]=a.t.split(':').map(Number);list.push({id:1000+i,title:'⏰ '+(a.l||'Alarm'),body:a.t,schedule:{on:{hour:h,minute:m},allowWhileIdle:true}})});
+ events.filter(e=>e.t).forEach((e,i)=>{const at=new Date(e.d+'T'+e.t+':00');if(at.getTime()>now)list.push({id:5000+i,title:'📅 '+e.l,body:e.t,schedule:{at,allowWhileIdle:true}})});
+ if(list.length)await ln.schedule({notifications:list})}catch(err){notify('Could not schedule alarms',String(err.message||err).slice(0,80))}}
+['aladd','alon','aldel','evadd','evdel'].forEach(k=>{const f=A[k];A[k]=function(){const r=f.apply(this,arguments);syncNative();return r}});
+addEventListener('load',()=>setTimeout(syncNative,1500));
 function beep(){try{const c=new AudioContext();[0,.35,.7,1.05].forEach(o=>{const g=c.createGain(),x=c.createOscillator();x.frequency.value=880;x.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.2,c.currentTime+o);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+o+.3);x.start(c.currentTime+o);x.stop(c.currentTime+o+.3)})}catch{}}
 setInterval(()=>{const n=new Date(),p=x=>String(x).padStart(2,'0'),hm=p(n.getHours())+':'+p(n.getMinutes()),day=`${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}`;
  alarms.forEach(a=>{if(a.on&&a.t===hm&&a.f!==day+hm){a.f=day+hm;LS.s('alarms',alarms);beep();setSt('surprised',3000);notify('⏰ '+(a.l||'Alarm'),a.t)}});
