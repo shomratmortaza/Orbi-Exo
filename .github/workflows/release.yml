@@ -42,12 +42,20 @@ jobs:
           python3 - "$M" <<'PY'
           import sys
           p=sys.argv[1];s=open(p).read()
-          perms=['POST_NOTIFICATIONS','SCHEDULE_EXACT_ALARM','USE_EXACT_ALARM','RECEIVE_BOOT_COMPLETED','VIBRATE','WAKE_LOCK']
+          perms=['POST_NOTIFICATIONS','SCHEDULE_EXACT_ALARM','USE_EXACT_ALARM','RECEIVE_BOOT_COMPLETED','VIBRATE','WAKE_LOCK','SYSTEM_ALERT_WINDOW','FOREGROUND_SERVICE','FOREGROUND_SERVICE_SPECIAL_USE']
           add=''.join('    <uses-permission android:name="android.permission.%s"/>\n'%x for x in perms if x not in s)
           s=s.replace('<application',add+'    <application',1)
+          svc='    <service android:name=".OverlayService" android:exported="false" android:foregroundServiceType="specialUse"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="floating island overlay"/></service>\n'
+          s=s.replace('</application>',svc+'    </application>',1)
           open(p,'w').write(s)
           PY
           grep uses-permission $M
+      - name: Native island overlay
+        run: |
+          D=android/app/src/main/java/com/shomratmortaza/orbi
+          ls $D
+          cp native/*.java $D/
+          ls $D
       - name: App icon
         run: |
           for d in android/app/src/main/res/mipmap-*; do

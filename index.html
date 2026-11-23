@@ -71,7 +71,7 @@ canvas.v{width:100%;height:50px;display:block}
 html.desktop,html.desktop body{background:transparent}.desktop .wall,.desktop .desk{display:none}.desktop #launch{background:transparent}.desktop .isl{background:rgba(var(--g),max(var(--op),.72))}
 .isl.ai{animation:glow 1.6s ease-in-out infinite}@keyframes glow{50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 0 30px var(--acc),0 14px 40px rgba(0,0,0,.35)}}
 @media (prefers-reduced-motion:reduce){.isl.ai{animation:none}}
-.un{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle}
+.ovl .pi>.pin{height:min(440px,85vh)}.ovl .isl{top:8px}.un{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -296,10 +296,19 @@ async function syncNative(){const ln=LN();if(!ln)return;try{
  if(list.length)await ln.schedule({notifications:list})}catch(err){notify('Could not schedule alarms',String(err.message||err).slice(0,80))}}
 ['aladd','alon','aldel','evadd','evdel'].forEach(k=>{const f=A[k];A[k]=function(){const r=f.apply(this,arguments);syncNative();return r}});
 addEventListener('load',()=>setTimeout(syncNative,1500));
+
+Object.assign(A,{async ovl(){const o=Capacitor.Plugins.OrbiOverlay;try{const s=await o.status();if(!s.granted){notify('Allow "Display over other apps" for ORBI, then tap the button again');await o.request();return}await o.start();notify('Island is on','It now floats over your apps')}catch(e){notify('Could not start island',String(e.message||e).slice(0,80))}},
+async ovloff(){try{await Capacitor.Plugins.OrbiOverlay.stop();notify('Island hidden')}catch{}}});
 function beep(){try{const c=new AudioContext();[0,.35,.7,1.05].forEach(o=>{const g=c.createGain(),x=c.createOscillator();x.frequency.value=880;x.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.2,c.currentTime+o);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+o+.3);x.start(c.currentTime+o);x.stop(c.currentTime+o+.3)})}catch{}}
-setInterval(()=>{const n=new Date(),p=x=>String(x).padStart(2,'0'),hm=p(n.getHours())+':'+p(n.getMinutes()),day=`${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}`;
+setInterval(()=>{if(window.OrbiNative)return;const n=new Date(),p=x=>String(x).padStart(2,'0'),hm=p(n.getHours())+':'+p(n.getMinutes()),day=`${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}`;
  alarms.forEach(a=>{if(a.on&&a.t===hm&&a.f!==day+hm){a.f=day+hm;LS.s('alarms',alarms);beep();setSt('surprised',3000);notify('⏰ '+(a.l||'Alarm'),a.t)}});
  events.forEach(e=>{if(e.t&&e.d===day&&e.t===hm&&!e.f){e.f=1;LS.s('events',events);notify('📅 '+e.l,e.t)}})},5000);
+
+/* ---------- Android floating overlay mode ---------- */
+if(window.OrbiNative){const r=document.documentElement;r.classList.add('desktop','ovl');
+ const rep=()=>{const b=$('#isl').getBoundingClientRect();OrbiNative.size(Math.ceil(b.width)+16,Math.ceil(b.height)+24,!!open)};
+ new ResizeObserver(rep).observe($('#isl'));const _so=setOpen;setOpen=function(v){_so(v);rep()};
+ setInterval(()=>{S={...DEF,...LS.g('s',{})};apply(true);island()},3000);setTimeout(rep,300)}
 /* ---------- Apply, tick, launcher ---------- */
 function apply(redraw){const r=document.documentElement;r.dataset.theme=S.theme;r.style.setProperty('--acc',S.acc);r.style.setProperty('--blur',S.blur+'px');r.style.setProperty('--op',S.op);r.style.setProperty('--rad',S.rad+'px');r.style.setProperty('--d',(S.rm?.01:.5/S.spd)+'s');save();sizePet();island()}
 setInterval(()=>{island();const n=new Date(),$$=s=>document.getElementById(s);if($$('ck')){$$('ck').textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});$$('dt').textContent=n.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})}
@@ -346,6 +355,7 @@ function renderSetup(){const el=$('#setup');if(!el)return;const ua=navigator.use
  else if(ios)t='On iPhone, open this page in <b>Safari</b>, tap Share → <b>Add to Home Screen</b>. Apple does not allow app downloads outside the App Store.';
  else t='Get the real app for your device: Windows installer or Android APK.';
  let b='';if(!sa&&!ios)b='<div class="row"><a class="bt'+(win?' pri':'')+'" href="/download">Download for Windows</a><a class="bt'+(and?' pri':'')+'" href="/download">Download for Android</a></div>';
+ const nat=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.OrbiOverlay;if(nat)b+='<div class="row"><button class="pri" data-a="ovl">Show island over all apps</button><button data-a="ovloff">Hide island</button></div>';
  el.innerHTML=b+'<div>'+t+'</div>'}
 A.guide=()=>{$('#desk').hidden=false;LS.s('ob',0);setOpen(false);scrollTo(0,0)};
 if(!localStorage.getItem('orbi.s')&&/iPhone|Android/.test(navigator.userAgent)){S.w=150;S.hover=false;save()}
