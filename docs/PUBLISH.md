@@ -46,3 +46,12 @@ Import the repo in Vercel (Framework: Other, no build command, output = root). E
 
 ## Release a new version
 Change nothing in the website. Just `git tag v1.0.1 && git push origin v1.0.1`.
+
+## 7. Song search key (one time, optional but recommended)
+ORBI's "search a song" runs on your Vercel site, so users need no key. You add ONE key, privately:
+1. console.cloud.google.com -> create a project -> APIs & Services -> Library -> enable **YouTube Data API v3**.
+2. Credentials -> Create credentials -> **API key**. Under "API restrictions" choose YouTube Data API v3 only.
+3. Vercel -> your project -> Settings -> **Environment Variables** -> name `YOUTUBE_API_KEY`, value = the key -> Save.
+4. Deployments -> latest -> **Redeploy**.
+
+Never put the key in the repo. Free quota is 10,000 units per day, one search costs 100 units, so about 100 new searches a day in total. Repeated searches are cached. If the limit is hit, users can still paste a link.

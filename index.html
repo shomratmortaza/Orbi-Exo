@@ -71,6 +71,10 @@ canvas.v{width:100%;height:50px;display:block}
 html.desktop,html.desktop body{background:transparent}.desktop .wall,.desktop .desk{display:none}.desktop #launch{background:transparent}.desktop .isl{background:rgba(var(--g),max(var(--op),.72))}
 .isl.ai{animation:glow 1.6s ease-in-out infinite}@keyframes glow{50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 0 30px var(--acc),0 14px 40px rgba(0,0,0,.35)}}
 @media (prefers-reduced-motion:reduce){.isl.ai{animation:none}}
+.bar{touch-action:none}.dragging .isl{transition:none!important}.dragging .bar{cursor:grabbing}
+.docked .isl{width:22px!important;min-width:0;height:56px;overflow:hidden;cursor:pointer;border-radius:0 14px 14px 0}
+[data-side=r].docked .isl{border-radius:14px 0 0 14px}.docked .isl>*{visibility:hidden}
+.docked .isl::after{content:"";position:absolute;left:8px;right:8px;top:16px;bottom:16px;border-radius:4px;background:var(--acc);opacity:.85}
 .ovl .pi>.pin{height:min(440px,85vh)}.ovl .isl{top:8px}.un{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle}
 </style>
 </head>
@@ -182,6 +186,8 @@ function island(){const a=$('#act'),i=$('#isl');let w=S.w,h='';
  else if(T){const rem=(T.end-now)/1000,p=1-rem/T.total;w=Math.max(S.w,260);h=`<b>${T.label}</b> ${fmt(rem)}<div class="pbar"><i style="width:${Math.min(100,p*100)}%"></i></div>`;if(rem<=0){notify(T.label+' finished','Time is up.');T=null;setSt('happy',1500)}}
  else if(aiBusy){w=Math.max(S.w,240);h='✦ <b>AI</b> <small>thinking…</small>'}
  else if(playing()){w=Math.max(S.w,280);h=`♪ ${esc(list[cur].name)}`}
+ else if(YTS.playing&&YTS.title){w=Math.max(S.w,Math.min(300,110+YTS.title.length*7));h=`♪ <span class="un">${esc(YTS.title)}</span>`}
+ else if(SYS.playing&&SYS.title){w=Math.max(S.w,Math.min(300,110+SYS.title.length*7));h=`♪ <span class="un">${esc(SYS.title)}</span>`}
  else if(S.user&&S.showUser){w=Math.max(S.w,Math.min(300,96+S.user.length*9));h=`<b class="un">${esc(S.user)}</b>`}
  if(open){i.style.setProperty('--w',Math.min(620,innerWidth-16)+'px')}else{i.style.setProperty('--w',w+'px')}
  i.style.setProperty('--rw',w+'px');i.classList.toggle('ai',aiBusy);a.innerHTML=open?'<b>ORBI</b>':(h||(S.petOn?'':'<b>ORBI</b>'));$('#vz').style.display=!open&&playing()?'':'none'}
@@ -304,6 +310,99 @@ setInterval(()=>{if(window.OrbiNative)return;const n=new Date(),p=x=>String(x).p
  alarms.forEach(a=>{if(a.on&&a.t===hm&&a.f!==day+hm){a.f=day+hm;LS.s('alarms',alarms);beep();setSt('surprised',3000);notify('⏰ '+(a.l||'Alarm'),a.t)}});
  events.forEach(e=>{if(e.t&&e.d===day&&e.t===hm&&!e.f){e.f=1;LS.s('events',events);notify('📅 '+e.l,e.t)}})},5000);
 
+
+/* ---------- Drag the island anywhere, dock it to a side ---------- */
+(()=>{if(window.OrbiNative)return;const D=window.orbiDesktop&&orbiDesktop.dragStart?orbiDesktop:null,isl=$('#isl'),bar=$('#bar'),R=document.documentElement;
+let dock=null,moved=false,st=null,P=LS.g('pos',{fx:.5,y:12});
+const place=()=>{if(D)return;const w=Math.max(isl.offsetWidth,170);
+ if(dock){isl.style.left=(dock==='l'?11:innerWidth-11)+'px';isl.style.top=Math.min(Math.max(P.y,0),innerHeight-70)+'px'}
+ else{isl.style.left=Math.min(Math.max(P.fx*innerWidth,w/2+8),innerWidth-w/2-8)+'px';isl.style.top=Math.min(Math.max(P.y,0),innerHeight-60)+'px'}};
+const setDock=d=>{if(d&&open)setOpen(false);dock=d;R.classList.toggle('docked',!!d);R.dataset.side=d||'';place()};
+const undock=()=>{const d=dock;dock=null;R.classList.remove('docked');R.dataset.side='';const w=Math.max(S.w||170,200);
+ if(D)D.undock(w);else{P.fx=(d==='l'?w/2+12:innerWidth-w/2-12)/innerWidth;P.dock=null;LS.s('pos',P);place()}};
+isl.addEventListener('pointerdown',()=>{moved=false},true);
+bar.addEventListener('pointerdown',e=>{if(dock||e.button>0)return;st={x:e.screenX,y:e.screenY,l:parseFloat(isl.style.left)||innerWidth/2,t:parseFloat(isl.style.top)||12};try{bar.setPointerCapture(e.pointerId)}catch{}if(D)D.dragStart()});
+bar.addEventListener('pointermove',e=>{if(!st)return;const dx=e.screenX-st.x,dy=e.screenY-st.y;if(!moved&&Math.hypot(dx,dy)<6)return;if(!moved){moved=true;R.classList.add('dragging')}
+ if(D)D.dragMove(dx,dy,isl.offsetWidth);else{isl.style.left=(st.l+dx)+'px';isl.style.top=(st.t+dy)+'px'}});
+const end=e=>{if(!st)return;st=null;R.classList.remove('dragging');if(!moved)return;
+ const r=isl.getBoundingClientRect();let side=null;
+ if(!open){if(D){const sl=e.screenX-e.clientX+r.left,sr=sl+r.width,L=screen.availLeft||0,Rr=L+screen.availWidth;if(sl<L+28)side='l';else if(sr>Rr-28)side='r'}else{if(r.left<28)side='l';else if(r.right>innerWidth-28)side='r'}}
+ if(D)D.dragEnd();else{P={fx:(r.left+r.width/2)/innerWidth,y:r.top,dock:side};LS.s('pos',P)}
+ if(side){setDock(side);if(D)D.dock(side)}else place()};
+bar.addEventListener('pointerup',end);bar.addEventListener('pointercancel',end);
+bar.addEventListener('click',e=>{if(moved){e.stopImmediatePropagation();e.preventDefault();moved=false}},true);
+isl.addEventListener('click',e=>{if(dock&&!moved){e.stopImmediatePropagation();e.preventDefault();undock()}},true);
+const _so=setOpen;setOpen=function(v){if(dock&&v)undock();_so(v);if(D)D.open(!!v)};
+addEventListener('resize',place);
+if(D)D.onDock(d=>{if(d)setDock(d)});else{if(P.dock)setDock(P.dock);else place()}})();
+
+
+/* ---------- YouTube inside ORBI (IFrame Player API, no login needed) ---------- */
+const YTS={title:'',playing:false,vol:80};let YP=null,YQ=[],yi=-1,yMode='q';
+const ytLoad=()=>(window.YT&&YT.Player)?Promise.resolve():new Promise(r=>{if(!$('#ytapi')){const e=document.createElement('script');e.id='ytapi';e.src='https://www.youtube.com/iframe_api';document.head.appendChild(e)}const f=window.onYouTubeIframeAPIReady;window.onYouTubeIframeAPIReady=()=>{f&&f();r()}});
+const ytParse=t=>{t=t.trim();const l=t.match(/[?&]list=([\w-]+)/),v=t.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/)||t.match(/^([\w-]{11})$/);return{list:l&&l[1],id:v&&v[1]}};
+function ytPlace(){const w=$('#ytwrap');if(!w)return;const sl=$('#ytslot'),vw=$('#view');
+ if(open&&tab==='music'&&sl){const a=sl.getBoundingClientRect(),b=$('#isl').getBoundingClientRect(),v=vw.getBoundingClientRect(),ok=a.bottom>v.top+20&&a.top<v.bottom-20;Object.assign(w.style,{left:a.left-b.left+'px',top:a.top-b.top+'px',width:a.width+'px',height:a.height+'px',opacity:ok?1:0,pointerEvents:ok?'auto':'none'})}
+ else Object.assign(w.style,{left:'0',top:'0',width:'2px',height:'2px',opacity:0,pointerEvents:'none'})}
+async function ytEnsure(){if(YP)return YP;await ytLoad();return new Promise(res=>{const w=document.createElement('div');w.id='ytwrap';w.style.cssText='position:absolute;z-index:5;border-radius:12px;overflow:hidden';w.innerHTML='<div id="ytp"></div>';$('#isl').appendChild(w);ytPlace();
+ YP=new YT.Player('ytp',{width:'100%',height:'100%',playerVars:{playsinline:1,rel:0},events:{onReady:()=>{YP.setVolume(YTS.vol);res(YP)},onStateChange:ytState,onError:ytErr}})})}
+function ytUI(){island();const b=$('[data-a=ytplay]');if(b)b.textContent=YTS.playing?'⏸':'▶';const n=$('#ytnow');if(n)n.textContent=YTS.title||'Nothing playing'}
+function ytState(e){YTS.playing=e.data===1;try{const t=YP.getVideoData().title;if(t){YTS.title=t;if(yMode==='q'&&YQ[yi])YQ[yi].t=t}}catch{}if(e.data===0&&yMode==='q')ytNext();ytUI()}
+function ytErr(){notify('Cannot play this video','The owner disabled embedding. Skipping.');if(yMode==='q')ytNext()}
+async function ytPlayId(id){const p=await ytEnsure();yMode='q';let k=YQ.findIndex(x=>x.id===id);if(k<0){YQ.push({id});k=YQ.length-1}yi=k;p.loadVideoById(id)}
+async function ytPlayList(list){const p=await ytEnsure();yMode='p';p.loadPlaylist({list,listType:'playlist'})}
+function ytNext(){if(!YP)return;if(yMode==='p')YP.nextVideo();else if(yi+1<YQ.length){yi++;YP.loadVideoById(YQ[yi].id)}}
+function ytPrev(){if(!YP)return;if(yMode==='p')YP.previousVideo();else if(yi>0){yi--;YP.loadVideoById(YQ[yi].id)}}
+async function ytSearch(q){const el=$('#ytres');if(el)el.innerHTML='<div class="mut">Searching…</div>';let items=null,err='';
+ try{const r=await fetch('/api/search?q='+encodeURIComponent(q));const j=await r.json();if(r.ok)items=j.items;else err=j.error||'Search failed'}catch{err='No connection'}
+ const key=LS.g('ytkey','');
+ if(!items&&key){try{const r=await fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q='+encodeURIComponent(q)+'&key='+encodeURIComponent(key));const j=await r.json();if(!r.ok)throw new Error('Your API key was rejected');items=(j.items||[]).map(i=>({id:i.id.videoId,title:i.snippet.title,channel:i.snippet.channelTitle}))}catch(e){err=String(e.message||e)}}
+ if(!items){if(el)el.innerHTML='';notify('Search unavailable',(err||'Try a link instead').slice(0,80));return}
+ if(items.length&&!window.__noAuto)ytPlayId(items[0].id);
+ if(el)el.innerHTML=items.map(i=>`<div class="li"><span>${esc(i.title)}<br><small class="mut">${esc(i.channel||'')}</small></span><button data-a="ytpick" data-v="${esc(i.id)}" aria-label="Play">▶</button></div>`).join('')||'<div class="mut">No results.</div>'}
+const ytCard=()=>`<div class="card"><h3>YouTube</h3><div id="ytslot" style="aspect-ratio:16/9;min-height:113px;border-radius:12px;background:rgba(128,128,140,.15)"></div>
+<div class="row" style="margin-top:8px"><button data-a="ytprev" aria-label="Previous">⏮</button><button class="pri" data-a="ytplay" aria-label="Play or pause">${YTS.playing?'⏸':'▶'}</button><button data-a="ytnext" aria-label="Next">⏭</button><input type="range" min="0" max="100" value="${YTS.vol}" data-a="ytvol" style="flex:1" aria-label="Volume"></div>
+<div class="mut" id="ytnow">${esc(YTS.title||'Paste a YouTube link or playlist below')}</div>
+<div class="row"><input type="text" id="yt-in" placeholder="Search a song, or paste a YouTube link" style="flex:1"><button class="pri" data-a="ytgo">Go</button></div><div id="ytres"></div>
+<details><summary class="mut">Search not working? Use your own key</summary><div class="mut">Optional: paste your own free YouTube Data API key.</div><input type="text" id="yt-key" placeholder="API key" value="${esc(LS.g('ytkey',''))}"></details></div>`;
+{const _vm=V.music;V.music=()=>{setTimeout(ytPlace,0);return ytCard()+_vm()}}
+{const _sh=show;show=function(k){_sh(k);ytPlace()}}
+Object.assign(A,{async ytgo(){const t=$('#yt-in').value.trim();if(!t)return;const r=ytParse(t);if(r.list)await ytPlayList(r.list);else if(r.id)await ytPlayId(r.id);else await ytSearch(t)},
+ ytpick(v){ytPlayId(v)},ytnext(){ytNext()},ytprev(){ytPrev()},ytvol(){},
+ async ytplay(){if(!YP){const t=$('#yt-in');if(t&&t.value.trim())return A.ytgo();return}YTS.playing?YP.pauseVideo():YP.playVideo()}});
+document.addEventListener('input',e=>{if(e.target.dataset&&e.target.dataset.a==='ytvol'){YTS.vol=+e.target.value;if(YP)YP.setVolume(YTS.vol)}});
+document.addEventListener('change',e=>{if(e.target.id==='yt-key')LS.s('ytkey',e.target.value.trim())});
+document.addEventListener('keydown',e=>{if(e.target.id==='yt-in'&&e.key==='Enter')A.ytgo()});
+addEventListener('resize',ytPlace);$('#view').addEventListener('scroll',ytPlace);
+/* ---------- System media (Spotify, YouTube Music, any player) + app updates ---------- */
+let SYS={},UPD={cur:'',latest:''};
+const capM=()=>window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.OrbiOverlay;
+const mediaAvail=()=>!!(window.OrbiNative||capM()||(window.orbiDesktop&&orbiDesktop.mediaStatus));
+async function mediaStatus(){try{if(window.OrbiNative)return JSON.parse(OrbiNative.mediaStatus());const c=capM();if(c)return await c.mediaStatus();if(window.orbiDesktop&&orbiDesktop.mediaStatus)return await orbiDesktop.mediaStatus()}catch{}return null}
+function mediaCmd(a){try{if(window.OrbiNative)OrbiNative.mediaCmd(a);else{const c=capM();if(c)c.mediaCmd({cmd:a});else if(window.orbiDesktop&&orbiDesktop.mediaCmd)orbiDesktop.mediaCmd(a)}}catch{}}
+const sysCard=()=>{if(!mediaAvail())return'';let b;
+ if(SYS.granted===false)b=window.OrbiNative?'<div class="mut">Open the ORBI app, then Music, and tap Allow.</div>':'<div class="mut">Let ORBI see what is playing (Spotify, YouTube Music, any player).</div><button class="pri" data-a="macc">Allow</button>';
+ else if(SYS.title)b=`<b>${esc(SYS.title)}</b><div class="mut">${esc(SYS.artist||'')}</div><div class="row"><button data-a="mc" data-v="prev" aria-label="Previous">⏮</button><button class="pri" data-a="mc" data-v="toggle" aria-label="Play or pause">${SYS.playing?'⏸':'▶'}</button><button data-a="mc" data-v="next" aria-label="Next">⏭</button></div>`;
+ else b='<div class="mut">Nothing playing in another app. Start Spotify or YouTube Music.</div>';
+ return`<div class="card" id="sys"><h3>Now playing (any app)</h3>${b}</div>`};
+async function pollMedia(){const r=await mediaStatus();if(!r)return;if(JSON.stringify(r)===JSON.stringify(SYS))return;SYS=r;island();const el=$('#sys');if(el)el.outerHTML=sysCard()}
+setInterval(()=>{if(window.OrbiNative||capM()||(open&&tab==='music'))pollMedia()},3000);
+{const _vm=V.music;V.music=()=>{setTimeout(pollMedia,30);return sysCard()+_vm()}}
+const vnum=v=>String(v).replace(/^v/,'').split('.').map(n=>parseInt(n)||0);
+const newer=(a,b)=>{const x=vnum(a),y=vnum(b);for(let i=0;i<3;i++)if((x[i]||0)!==(y[i]||0))return(x[i]||0)>(y[i]||0);return false};
+async function curVersion(){try{if(window.orbiDesktop&&orbiDesktop.version)return orbiDesktop.version;const c=capM();if(c)return(await c.version()).version}catch{}return''}
+async function chkUpd(manual){UPD.cur=await curVersion();if(!UPD.cur)return;
+ try{const r=await fetch('https://api.github.com/repos/shomratmortaza/Orbi-Exo/releases/latest');if(!r.ok)throw 0;UPD.latest=(await r.json()).tag_name;
+  if(newer(UPD.latest,UPD.cur)){if(LS.g('updSeen','')!==UPD.latest){LS.s('updSeen',UPD.latest);notify('Update available','ORBI '+UPD.latest+' is ready. Open Settings to update.')}}
+  else if(manual)notify('You are up to date','ORBI '+UPD.cur)}catch{if(manual)notify('Could not check for updates','Check your internet connection')}
+ if(open&&tab==='settings')show('settings')}
+const updCard=()=>{if(!UPD.cur)return'';const nw=UPD.latest&&newer(UPD.latest,UPD.cur);
+ return`<div class="card"><h3>App version</h3><div>ORBI ${esc(UPD.cur)} ${nw?'· <b>Update available: '+esc(UPD.latest)+'</b>':'· Up to date'}</div><div class="row">${nw?'<button class="pri" data-a="upd">Update now</button>':''}<button data-a="chk">Check again</button></div></div>`};
+{const _vs=V.settings;V.settings=()=>updCard()+_vs()}
+Object.assign(A,{mc(v){mediaCmd(v);setTimeout(pollMedia,600)},macc(){const c=capM();if(c)c.mediaAccess()},chk(){chkUpd(true)},
+ async upd(){try{if(window.orbiDesktop&&orbiDesktop.update){notify('Downloading update…','ORBI will restart the installer');const ok=await orbiDesktop.update();if(!ok)notify('Download failed','Try again later')}
+  else{const c=capM();if(c)c.openUrl({url:'https://github.com/shomratmortaza/Orbi-Exo/releases/latest/download/ORBI.apk'})}}catch{notify('Update failed','Try again later')}}});
+if(!window.OrbiNative){setTimeout(chkUpd,3000);setInterval(chkUpd,6*3600e3)}
 /* ---------- Android floating overlay mode ---------- */
 if(window.OrbiNative){const r=document.documentElement;r.classList.add('desktop','ovl');
  const rep=()=>{const b=$('#isl').getBoundingClientRect();OrbiNative.size(Math.ceil(b.width)+16,Math.ceil(b.height)+24,!!open)};
