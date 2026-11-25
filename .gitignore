@@ -1,0 +1,9 @@
+node_modules
+dist
+android-app/android
+*.jks
+*.keystore
+.env
+.env.*
+!.env.example
+.vercel

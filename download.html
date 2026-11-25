@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Download ORBI</title>
+<meta name="theme-color" content="#0b0d14">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+:root{--acc:#7cf0c9;--g:16,18,26;--t:#f3f5fa;--m:#a3a9ba;--ln:rgba(255,255,255,.14);--bg:#0b0d14}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]){--g:255,255,255;--t:#161923;--m:#5a6072;--ln:rgba(0,0,0,.12);--bg:#e9edf5}}
+[data-theme=light]{--g:255,255,255;--t:#161923;--m:#5a6072;--ln:rgba(0,0,0,.12);--bg:#e9edf5}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font:15px/1.5 "DM Sans",system-ui,sans-serif;color:var(--t);background:radial-gradient(60vw 50vh at 15% 10%,#3b5bdb66,transparent),radial-gradient(50vw 50vh at 85% 20%,#e8672a55,transparent),var(--bg)}
+main{max-width:860px;margin:0 auto;padding:max(24px,env(safe-area-inset-top)) 18px 60px}
+a{color:inherit}h1{font-size:clamp(30px,7vw,52px);margin:.4em 0 .1em;letter-spacing:-.03em}h2{font-size:18px;margin:0 0 8px}
+.m{color:var(--m)}.card{background:rgba(var(--g),.55);backdrop-filter:blur(14px);border:1px solid var(--ln);border-radius:20px;padding:18px;margin:14px 0}
+.tabs{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+button,.bt{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--ln);background:rgba(128,128,140,.16);border-radius:12px;padding:9px 16px;text-decoration:none;display:inline-block}
+button[aria-pressed=true]{border-color:var(--acc)}
+.pri{background:var(--acc);color:#0b0d14;border-color:transparent;font-weight:700}
+.off{opacity:.55;pointer-events:none}
+code{background:rgba(128,128,140,.2);padding:2px 6px;border-radius:6px;word-break:break-all;font-size:12px}
+table{width:100%;border-collapse:collapse}td{padding:6px 0;border-bottom:1px solid var(--ln);vertical-align:top}td:first-child{color:var(--m);width:38%}
+ol{padding-left:20px}pre{white-space:pre-wrap;margin:0;font:inherit}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body>
+<main>
+<a href="/" class="m">← ORBI</a>
+<h1>Download ORBI</h1>
+<p class="m">One Ecosystem. Every Device. Free, no account needed.</p>
+<div class="tabs" role="group" aria-label="Platform">
+  <button data-p="win" aria-pressed="false">Windows</button>
+  <button data-p="and" aria-pressed="false">Android</button>
+  <button data-p="ios" aria-pressed="false">iPhone / Mac / other</button>
+</div>
+<div class="card" id="dl"><div class="m">Checking latest release…</div></div>
+<div class="card"><h2>Release info</h2><table id="info"></table></div>
+<div class="card"><h2>Changelog</h2><pre id="log" class="m">—</pre></div>
+<div class="card"><h2>Security checksums (SHA-256)</h2><div id="sums" class="m">—</div>
+<p class="m">Verify on Windows: <code>certutil -hashfile ORBI-Setup-x64.exe SHA256</code></p></div>
+<p class="m">Prefer no install? <a href="/">Use ORBI in your browser</a>.</p>
+</main>
+<script src="/release-config.js"></script>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ua=navigator.userAgent,ios=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+let plat=/Android/.test(ua)?'and':ios?'ios':/Windows/.test(ua)?'win':'win';
+const mb=b=>(b/1048576).toFixed(1)+' MB';
+const WIN='ORBI-Setup-x64.exe',APK='ORBI.apk';
+let rel=null,state='loading';
+const guide={
+ win:['Click <b>Download for Windows</b>.','Open <code>ORBI-Setup-x64.exe</code>. If Windows SmartScreen warns, click <b>More info → Run anyway</b> (the installer is not code-signed yet).','ORBI starts at the top-center of your screen. Press <b>Ctrl+Alt+O</b> to open it; use the tray icon for options.'],
+ and:['Tap <b>Download for Android</b> and open <code>ORBI.apk</code>.','Android asks to allow <b>Install unknown apps</b> for your browser. Allow it once, then tap Install.','Open ORBI. For the floating island, allow the permissions it asks for.'],
+ ios:['Apple does not allow installing apps outside the App Store.','iPhone: open this site in Safari → Share → <b>Add to Home Screen</b>.','Mac: use Chrome or Edge → install icon in the address bar.']};
+function render(){
+ document.querySelectorAll('[data-p]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===plat));
+ const base=rel?`https://github.com/${window.ORBI_REPO}/releases/latest/download/`:'';
+ const asset=n=>rel&&rel.assets.find(a=>a.name===n);
+ let h='';
+ if(plat==='ios')h='<h2>iPhone &amp; Mac</h2><div class="row"><a class="bt pri" href="/">Open ORBI in browser</a></div>';
+ else{const f=plat==='win'?WIN:APK,label=plat==='win'?'Windows':'Android',a=asset(f);
+  h=`<h2>ORBI for ${label}</h2>`+(state==='ready'&&a?`<div class="row"><a class="bt pri" href="${base+f}">Download for ${label}</a><span class="m">${esc(rel.tag_name)} · ${mb(a.size)}</span></div>`
+   :state==='loading'?'<div class="m">Loading…</div>':`<div class="row"><span class="bt off">Coming soon</span></div><p class="m">${state==='error'?'Could not reach the release server. Try again later.':'This download has not been published yet.'}</p>`);}
+ h+='<ol>'+guide[plat].map(x=>'<li>'+x+'</li>').join('')+'</ol>';
+ $('#dl').innerHTML=h;
+ const w=rel&&asset(WIN),a=rel&&asset(APK);
+ $('#info').innerHTML=rel?`<tr><td>Latest version</td><td>${esc(rel.tag_name)}</td></tr><tr><td>Release date</td><td>${new Date(rel.published_at).toLocaleDateString()}</td></tr><tr><td>Windows</td><td>${w?mb(w.size)+' · Windows 10/11 64-bit':'not available'}</td></tr><tr><td>Android</td><td>${a?mb(a.size)+' · Android 7.0+ (WebView 90+)':'not available'}</td></tr>`:'<tr><td>Status</td><td>No public release yet</td></tr>';
+ if(rel){$('#log').textContent=(rel.body||'').split(/SHA-?256/i)[0].trim()||'No notes.';
+  const sums=[...(rel.body||'').matchAll(/([a-f0-9]{64})\s+\*?(\S+)/gi)];
+  $('#sums').innerHTML=sums.length?sums.map(m=>`<div><code>${m[1]}</code> ${esc(m[2])}</div>`).join(''):'Listed in SHA256SUMS.txt on the release.'}
+}
+document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{plat=b.dataset.p;render()});
+render();
+(async()=>{const repo=window.ORBI_REPO;
+ if(!repo||repo.startsWith('USERNAME')){state='none';return render()}
+ try{const r=await fetch(`https://api.github.com/repos/${repo}/releases/latest`,{headers:{Accept:'application/vnd.github+json'}});
+  if(r.status===404){state='none'}else if(!r.ok){state='error'}else{rel=await r.json();state='ready'}}catch{state='error'}
+ render()})();
+</script>
+</body>
+</html>
